@@ -182,6 +182,7 @@
 </ul>
 <p>本文只讲解缓存机制。先来看一张Structure图</p>
 <p><img src="https://upload-images.jianshu.io/upload_images/12337722-7569c1ed5372b195.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt></p>
+<p>&lt; !–more–&gt;</p>
 <p>写RecyclerView的大佬可能有内部类情节，所以整个RecyclerView下来有1.2w余行，这还不包括已经实现的几个LinearLayoutManager、DividerItemDecoration等等几个类，所以想看完整个源码是不可能的，看懂大概流程就可以了</p>
 <h1 id="四级缓存"><a href="#四级缓存" class="headerlink" title="四级缓存"></a>四级缓存</h1><p>RecyclerView的缓存由内部类Recycler负责，回收和复用都是以ViewHolder为单位</p>
 <p><strong>第一级缓存</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">final ArrayList&lt;ViewHolder&gt; mAttachedScrap = new ArrayList&lt;&gt;();</span><br><span class="line">ArrayList&lt;ViewHolder&gt; mChangedScrap = null;</span><br></pre></td></tr></table></figure></p>
@@ -288,6 +289,7 @@
         <p><strong>2017年1月，微信小程序上线</strong><br><strong>2017年10月，支付宝小程序上线</strong><br><strong>2018年7月，百度智能小程序上线</strong><br><strong>2018年11月，今日头条小程序上线</strong></p>
 <p>超级APP+众多小程序的模式的时代来了</p>
 <p>小程序（<strong>以下的小程序都是指微信小程序，其它几个厂子的还没研究过</strong>）因代码体积和网络请求等一些局限性致使功能受限，用户体验和原生的APP比起来也有所差距，可是像我这种对使用电脑和手机有<strong>洁癖</strong>或者说是<strong>强迫症</strong>的人来说基本是能用小程序就不用APP（<em>真的是洁癖吗？😂😂不是是手机和电脑内存太小，安装不了那么多软件吧</em>）。至于那些缺点，随后大佬们肯定会解决的</p>
+<p>&lt; !–more–&gt;</p>
 <p>作为一位不知名的Android开发工程师，因为学习能力、智商等限制，再加上急功近利，在Android方面如果不是在工作过程中遇到，真的不想去耐着性子去死磕比较难的东西，花很长的时间，并不一定能得到想要的效果。既然不能在技术的深度上精益求精、独当一面，那么为了能让自己卖个好价钱，就追求广度，去学习更多与移动开发相关的技能，<strong>小程序、Kotlin、Flutter</strong></p>
 <p>之前已写过一篇关于Kotlin的文章<a href="https://www.jianshu.com/p/a05b10976b08" target="_blank" rel="noopener">《推荐一个Kotlin项目》</a>，APP名字叫 <a href="https://haoshi.co/wanandroid.apk" target="_blank" rel="noopener">玩Android</a>，那这篇介绍的是小程序版本的玩Android</p>
 <p><strong>上图</strong></p>
@@ -416,7 +418,8 @@
 <p>自Google在2017的I/O大会上宣布Android支持Kotlin，到现在Kotlin语言已受到大批Android开发者的追捧，许多大厂已经使用纯Kotlin进行Android开发</p>
 <p>2018的I/O大会又发布可跨平台的UI框架Flutter ，支持在Android和iOS平台运行</p>
 <p><strong>这还没完没了了…</strong></p>
-<p>大势所趋吧，不得不学…  </p>
+<p>大势所趋吧，不得不学…</p>
+<p>&lt; !–more–&gt;</p>
 <h1 id="项目简介"><a href="#项目简介" class="headerlink" title="项目简介"></a>项目简介</h1><p><strong>上图</strong>，把四张拼一起了</p>
 <p><img src="https://upload-images.jianshu.io/upload_images/12337722-b9f7977f8d43c68a.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt></p>
 <ul>
@@ -548,6 +551,7 @@
         <p>接上一篇<a href="https://www.jianshu.com/p/4d3d2d757889" target="_blank" rel="noopener">《Activity页面加载流程(一)》</a></p>
 <p>上一篇讲了Window的创建，但其显示流程还没有讲清楚就跑路了</p>
 <p><strong>废话不多说，我们continue</strong><br>PS：<em>英文用错了场景别笑话，谁让它是关键词字😊😊</em><br>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;<em>这个单词拼不成汉语吧😊😊</em></p>
+<p>&lt; !–more–&gt;</p>
 <h1 id="WindowManager、WindowManagerImpl和WindowManagerGlobal的关系及内部机制"><a href="#WindowManager、WindowManagerImpl和WindowManagerGlobal的关系及内部机制" class="headerlink" title="WindowManager、WindowManagerImpl和WindowManagerGlobal的关系及内部机制"></a>WindowManager、WindowManagerImpl和WindowManagerGlobal的关系及内部机制</h1><p>WindowManager是一个继承于ViewManager的接口，实现类是WindowManagerImpl</p>
 <p><strong>Activity.java</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">final void attach(...)&#123;</span><br><span class="line">  ...</span><br><span class="line">  mWindow.setWindowManager(</span><br><span class="line">  (WindowManager)context.getSystemService(Context.WINDOW_SERVICE),  //系统的WindowManger</span><br><span class="line">        mToken, mComponent.flattenToString(),</span><br><span class="line">        (info.flags &amp; ActivityInfo.FLAG_HARDWARE_ACCELERATED) != 0);</span><br><span class="line">  ...</span><br><span class="line">  mWindowManager = mWindow.getWindowManager();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <p><strong>Window.java</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">public void setWindowManager(WindowManager wm, IBinder appToken, String appName, boolean hardwareAccelerated) &#123;</span><br><span class="line">  ...</span><br><span class="line">  //wm的createLocalWindowManager方法又重新new了WindowManagerImpl</span><br><span class="line">  mWindowManager = ((WindowManagerImpl)wm).createLocalWindowManager(this);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public WindowManager getWindowManager() &#123;</span><br><span class="line">  return mWindowManager;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
@@ -646,6 +650,7 @@
 <p>大家都听说过Activity，Window，PhoneWindow，WindowManager，WindowManagerImpl，WindowManagerGlobal，WindowManagerServer，ViewRoot，ViewRootImpl等这些class吧，如果你和我一样对它们的关系一知半解，那么这个笔记很适合你。<strong>最好打开AS，跟着源码走一走</strong></p>
 <p><strong>表演开始，这次不要🤮，会不会又跑路？？？😱</strong></p>
 <p>首先在ActivityThread的performLaunchActivity方法通过反射创建Activity，activity调用attach方法创建PhoneWindow；activity执行onCreate生命周期，setContentView(int)经过层层调用执行PhoneWindow的setContentView(View)方法，然后创建根布局DecorView，DecorView包含一个contentParent，我们setContentView就是把自己的页面添加到contentParent里面，现在页面已经建成，但还没有显示，接下来看ActivityThread的handleResumeActivity方法，activity调用makeVisible方法，mDecor.setVisibility(View.VISIBLE)显示</p>
+<p>&lt; !–more–&gt;</p>
 <h1 id="先说一下Window"><a href="#先说一下Window" class="headerlink" title="先说一下Window"></a>先说一下Window</h1><p>有View的地方就有Window<br>Window分三大类，本文所讲的Window是应用程序Window</p>
 <ol>
 <li><p>系统Window<br>例如Toast、输入法、低电量提示所对应的window</p>
