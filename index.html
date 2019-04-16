@@ -152,6 +152,246 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-recyclerview" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/04/09/recyclerview/">推荐一个Kotlin项目</a>
+    </h1>
+  
+
+        
+        <a href="/2019/04/09/recyclerview/" class="archive-article-date">
+  	<time datetime="2019-04-09T13:52:00.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-04-09</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>RecyclerView的使用相信大家都很熟悉了，可以完全代替ListView和GridView，并且口味更佳，例如</p>
+<ul>
+<li>四级缓存，ListView只有两级缓存</li>
+<li>Item添加动画</li>
+<li>数据局部更新</li>
+<li>瀑布流。当然也可以自定义LayoutManager，规则布局你说了算</li>
+<li>…..</li>
+</ul>
+<p>本文只讲解缓存机制。先来看一张Structure图</p>
+<p><img src="https://upload-images.jianshu.io/upload_images/12337722-7569c1ed5372b195.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt></p>
+<p>写RecyclerView的大佬可能有内部类情节，所以整个RecyclerView下来有1.2w余行，这还不包括已经实现的几个LinearLayoutManager、DividerItemDecoration等等几个类，所以想看完整个源码是不可能的，看懂大概流程就可以了</p>
+<h1 id="四级缓存"><a href="#四级缓存" class="headerlink" title="四级缓存"></a>四级缓存</h1><p>RecyclerView的缓存由内部类Recycler负责，回收和复用都是以ViewHolder为单位</p>
+<p><strong>第一级缓存</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">final ArrayList&lt;ViewHolder&gt; mAttachedScrap = new ArrayList&lt;&gt;();</span><br><span class="line">ArrayList&lt;ViewHolder&gt; mChangedScrap = null;</span><br></pre></td></tr></table></figure></p>
+<p>第一级缓存有两个类型为ViewHolder的ArrayList集合，用来临时缓存屏幕中的Item。当数据更新重新绘制列表前会先清除所有Item，mChangedScrap保存被标记更新的Item，mAttachedScrap保存其他的Item</p>
+<p><strong>第二级缓存</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">final ArrayList&lt;ViewHolder&gt; mCachedViews = new ArrayList&lt;ViewHolder&gt;();</span><br></pre></td></tr></table></figure></p>
+<p>第二级缓存保存刚刚被移除屏幕，保存的ViewHolder都是有效的，默认最大缓存是2。先进先出原则，当大于最大缓存数时，会先移除第一个，再添加</p>
+<p><strong>第三级缓存</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">private ViewCacheExtension mViewCacheExtension;</span><br></pre></td></tr></table></figure></p>
+<p>第三级缓存Google没有实现，开发者一般也不会实现，可能是Google为了以后扩展。可以忽略</p>
+<p><strong>第四级缓存</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">RecycledViewPool mRecyclerPool;</span><br></pre></td></tr></table></figure></p>
+<p>第四级缓存保存无效的ViewHolder，从二级缓存放进去的，默认大小是5<br>RecycledViewPool有一个mScrap，保存不同类型的ViewHolder<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SparseArray&lt;RecyclerView.RecycledViewPool.ScrapData&gt; mScrap = new SparseArray();</span><br></pre></td></tr></table></figure></p>
+<h1 id="回收"><a href="#回收" class="headerlink" title="回收"></a>回收</h1><p>Adapter和RecycledView之间是通过观察者模式来实现数据变化通知。当调用Adapter一系列notify方法时，Adapter会通知观察者，RecyclerView的观察者RecyclerViewDataObserver就会执行对应的方法</p>
+<p><strong>RecyclerViewDataObserver</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">public void onChanged() &#123;</span><br><span class="line">  ...  </span><br><span class="line">  RecyclerView.this.requestLayout();</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public void onItemRangeChanged(int positionStart, int itemCount, Object payload) &#123;</span><br><span class="line">  ...</span><br><span class="line">  this.triggerUpdateProcessor();</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">void triggerUpdateProcessor() &#123;</span><br><span class="line">  //先执行动画，最后还是跑不掉了requestLayout，代码不贴了</span><br><span class="line">  if (RecyclerView.POST_UPDATES_ON_ANIMATION &amp;&amp; RecyclerView.this.mHasFixedSize &amp;&amp; RecyclerView.this.mIsAttached) &#123;</span><br><span class="line">    ViewCompat.postOnAnimation(RecyclerView.this, RecyclerView.this.mUpdateChildViewsRunnable);</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    RecyclerView.this.mAdapterUpdateDuringMeasure = true;</span><br><span class="line">    RecyclerView.this.requestLayout();</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>观察者的方法里都又直接间接地调用了RecyclerView的requestLayout（会执行View绘制的三部曲onMeasure、onLayout、onDraw），在onLayout经过层层调用到mLayout.onLayoutChildren，mLayout是LayoutManager，LayoutManager是抽象类，这里以LinearLayoutManager为例看一下onLayoutChildren方法的具体实现</p>
+<p><strong>RecyclerView.java</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">protected void onLayout(boolean changed, int l, int t, int r, int b) &#123;</span><br><span class="line">  ...</span><br><span class="line">  this.dispatchLayout();</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">void dispatchLayout() &#123;</span><br><span class="line">  ...</span><br><span class="line">  if (this.mState.mLayoutStep == 1) &#123;</span><br><span class="line">    //预布局，记录数据更新时需要执行的动画的信息</span><br><span class="line">    this.dispatchLayoutStep1();</span><br><span class="line">    this.mLayout.setExactMeasureSpecsFrom(this);</span><br><span class="line">    //实际布局</span><br><span class="line">    this.dispatchLayoutStep2();</span><br><span class="line">  &#125; else if (!this.mAdapterHelper.hasUpdates() &amp;&amp; this.mLayout.getWidth() == this.getWidth() &amp;&amp; this.mLayout.getHeight() == this.getHeight()) &#123;</span><br><span class="line">    this.mLayout.setExactMeasureSpecsFrom(this);</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    this.mLayout.setExactMeasureSpecsFrom(this);</span><br><span class="line">    this.dispatchLayoutStep2();</span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  //执行动画</span><br><span class="line">  this.dispatchLayoutStep3();</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">private void dispatchLayoutStep2() &#123;</span><br><span class="line">  ...</span><br><span class="line">  //布局</span><br><span class="line">  mLayout.onLayoutChildren(mRecycler, mState);</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><strong>LinearLayoutManager.java</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">public void onLayoutChildren(RecyclerView.Recycler recycler, RecyclerView.State state) &#123;</span><br><span class="line">  if (mPendingSavedState != null || mPendingScrollPosition != NO_POSITION) &#123;</span><br><span class="line">    if (state.getItemCount() == 0) &#123;</span><br><span class="line">      //1.清空列表，回收所有的View，return</span><br><span class="line">      removeAndRecycleAllViews(recycler);</span><br><span class="line">      return;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line">  //2.临时回收</span><br><span class="line">  detachAndScrapAttachedViews(recycler);</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>调用流程，代码不粘了，很简单</p>
+<ol>
+<li>LayoutManager.removeAndRecycleAllViews -&gt;<br>LayoutManager.removeAndRecycleViewAt -&gt;<br>Recycler.recycleViewHolderInternal()</li>
+<li>LayoutManager.detachAndScrapAttachedViews -&gt;<br>Recycler.scrapOrRecycleView -&gt;<br>Recycler.scrapView或者Recycler.recycleViewHolderInternal()</li>
+</ol>
+<p><strong>Recycler</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line">void recycleViewHolderInternal(ViewHolder holder) &#123;</span><br><span class="line">  ...</span><br><span class="line">  if (mViewCacheMax &gt; 0 </span><br><span class="line">      &amp;&amp; !holder.hasAnyOfTheFlags(ViewHolder.FLAG_INVALID</span><br><span class="line">                                | ViewHolder.FLAG_REMOVED</span><br><span class="line">                                | ViewHolder.FLAG_UPDATE</span><br><span class="line">                                | ViewHolder.FLAG_ADAPTER_POSITION_UNKNOWN)) &#123;</span><br><span class="line">    int cachedViewSize = mCachedViews.size();</span><br><span class="line">    if (cachedViewSize &gt;= mViewCacheMax &amp;&amp; cachedViewSize &gt; 0) &#123;</span><br><span class="line">      //超过最大缓存数，删除第一个</span><br><span class="line">      recycleCachedViewAt(0);</span><br><span class="line">      cachedViewSize--;</span><br><span class="line">    &#125;</span><br><span class="line">    ...</span><br><span class="line">    //存到第二级缓存</span><br><span class="line">    mCachedViews.add(targetCacheIndex, holder);</span><br><span class="line">    cached = true;</span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  if (!cached) &#123;</span><br><span class="line">    //没有存到第二季缓存的话，存第四级</span><br><span class="line">    addViewHolderToRecycledViewPool(holder, true);</span><br><span class="line">    recycled = true;</span><br><span class="line">  &#125;</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">//临时缓存，数据未改变，可以直接使用</span><br><span class="line">void scrapView(View view) &#123;</span><br><span class="line">  final ViewHolder holder = getChildViewHolderInt(view);</span><br><span class="line">  if (holder.hasAnyOfTheFlags(ViewHolder.FLAG_REMOVED | ViewHolder.FLAG_INVALID)</span><br><span class="line">        || !holder.isUpdated() || canReuseUpdatedViewHolder(holder)) &#123;</span><br><span class="line">               </span><br><span class="line">    holder.setScrapContainer(this, false);</span><br><span class="line">    //没有变化的</span><br><span class="line">    mAttachedScrap.add(holder);</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    if (mChangedScrap == null) &#123;</span><br><span class="line">      mChangedScrap = new ArrayList&lt;ViewHolder&gt;();</span><br><span class="line">    &#125;</span><br><span class="line">    holder.setScrapContainer(this, true);</span><br><span class="line">    //位置变化的</span><br><span class="line">    mChangedScrap.add(holder);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h1 id="复用"><a href="#复用" class="headerlink" title="复用"></a>复用</h1><p>在LayoutManager的onLayoutChildren里面调用fill()为RecyclerView填充Item,fill里面循环调用layoutChunk来addView，直到填满屏幕</p>
+<p><strong>LinearLayoutManager.java</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">public void onLayoutChildren(RecyclerView.Recycler recycler, RecyclerView.State state) &#123;</span><br><span class="line">  ...</span><br><span class="line">  fill(recycler, mLayoutState, state, false);</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">int fill(RecyclerView.Recycler recycler, LayoutState layoutState,</span><br><span class="line">            RecyclerView.State state, boolean stopOnFocusable) &#123;</span><br><span class="line">  ...</span><br><span class="line">  while ((layoutState.mInfinite || remainingSpace &gt; 0) &amp;&amp; layoutState.hasMore(state)) &#123;</span><br><span class="line">    layoutChunkResult.resetInternal();</span><br><span class="line">    layoutChunk(recycler, state, layoutState, layoutChunkResult);</span><br><span class="line">    if (layoutChunkResult.mFinished) &#123;</span><br><span class="line">      break;</span><br><span class="line">    &#125;</span><br><span class="line">    ...</span><br><span class="line">    if (stopOnFocusable &amp;&amp; layoutChunkResult.mFocusable) &#123;</span><br><span class="line">      break;</span><br><span class="line">    &#125;</span><br><span class="line">    ...</span><br><span class="line">  &#125;</span><br><span class="line">  ...</span><br><span class="line">  return start - layoutState.mAvailable;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">void layoutChunk(RecyclerView.Recycler recycler, RecyclerView.State state,</span><br><span class="line">        LayoutState layoutState, LayoutChunkResult result) &#123;</span><br><span class="line">  ...</span><br><span class="line">  View view = layoutState.next(recycler);</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">View next(RecyclerView.Recycler recycler) &#123;</span><br><span class="line">  ...</span><br><span class="line">  //通过position获取View</span><br><span class="line">  final View view = recycler.getViewForPosition(mCurrentPosition);</span><br><span class="line">  mCurrentPosition += mItemDirection;</span><br><span class="line">  return view;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>Recycler</strong><br>最终获取缓存都会调用Recycler的tryGetViewHolderForPositionByDeadline方法，这个方法里可以看到尝试从四级缓存中获取ViewHolder，如果获取不到就重新创建ViewHolder<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line">public View getViewForPosition(int position) &#123;</span><br><span class="line">  return getViewForPosition(position, false);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">View getViewForPosition(int position, boolean dryRun) &#123;</span><br><span class="line">  return tryGetViewHolderForPositionByDeadline(position,dryRun,FOREVER_NS).itemView;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">//非常重要的一个方法</span><br><span class="line">@Nullable</span><br><span class="line">ViewHolder tryGetViewHolderForPositionByDeadline(int position, boolean dryRun, long deadlineNs) &#123;</span><br><span class="line">  ...</span><br><span class="line">  ViewHolder holder = null;</span><br><span class="line">  //通过mChangedScrap获取缓存</span><br><span class="line">  if (mState.isPreLayout()) &#123;</span><br><span class="line">    holder = getChangedScrapViewForPosition(position);</span><br><span class="line">    fromScrapOrHiddenOrCache = holder != null;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line">  //通过mAttachedScrap或者mCachedViews获取缓存</span><br><span class="line">  if (holder == null) &#123;</span><br><span class="line">    holder = getScrapOrHiddenOrCachedHolderForPosition(position, dryRun);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line">  //通过StableId进行获取缓存，也是从mAttachedScrap或者mCachedViews获取</span><br><span class="line">  if (holder == null) &#123;</span><br><span class="line">    ...</span><br><span class="line">    if (mAdapter.hasStableIds()) &#123;</span><br><span class="line">    holder = getScrapOrCachedViewForId(mAdapter.getItemId(offsetPosition),  type, dryRun);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  //通过mViewCacheExtension获取缓存</span><br><span class="line">  if (holder == null &amp;&amp; mViewCacheExtension != null) &#123;</span><br><span class="line">    final View view = mViewCacheExtension.getViewForPositionAndType(this, position, type);</span><br><span class="line">    if (view != null) &#123;</span><br><span class="line">      holder = getChildViewHolder(view);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  //通过mRecyclerPool获取缓存</span><br><span class="line">  if (holder == null) &#123;</span><br><span class="line">    holder = getRecycledViewPool().getRecycledView(type);</span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  //只能创建ViewHolder</span><br><span class="line">  if (holder == null) &#123;</span><br><span class="line">    holder = mAdapter.createViewHolder(RecyclerView.this, type);</span><br><span class="line">  &#125;</span><br><span class="line"> </span><br><span class="line">  return holder;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>这就是RecyclerView的四级缓存机制，其实也就三级，ViewCacheExtension这里是空实现</p>
+<hr>
+<p><strong>脑瓜疼，想喝手磨咖啡</strong></p>
+<p><strong>End</strong></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">Kotlin</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2019/04/09/recyclerview/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-wandroid_wechat" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/03/13/wandroid_wechat/">推荐一个Kotlin项目</a>
+    </h1>
+  
+
+        
+        <a href="/2019/03/13/wandroid_wechat/" class="archive-article-date">
+  	<time datetime="2019-03-13T15:28:00.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-03-13</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p><strong>2017年1月，微信小程序上线</strong><br><strong>2017年10月，支付宝小程序上线</strong><br><strong>2018年7月，百度智能小程序上线</strong><br><strong>2018年11月，今日头条小程序上线</strong></p>
+<p>超级APP+众多小程序的模式的时代来了</p>
+<p>小程序（<strong>以下的小程序都是指微信小程序，其它几个厂子的还没研究过</strong>）因代码体积和网络请求等一些局限性致使功能受限，用户体验和原生的APP比起来也有所差距，可是像我这种对使用电脑和手机有<strong>洁癖</strong>或者说是<strong>强迫症</strong>的人来说基本是能用小程序就不用APP（<em>真的是洁癖吗？😂😂不是是手机和电脑内存太小，安装不了那么多软件吧</em>）。至于那些缺点，随后大佬们肯定会解决的</p>
+<p>作为一位不知名的Android开发工程师，因为学习能力、智商等限制，再加上急功近利，在Android方面如果不是在工作过程中遇到，真的不想去耐着性子去死磕比较难的东西，花很长的时间，并不一定能得到想要的效果。既然不能在技术的深度上精益求精、独当一面，那么为了能让自己卖个好价钱，就追求广度，去学习更多与移动开发相关的技能，<strong>小程序、Kotlin、Flutter</strong></p>
+<p>之前已写过一篇关于Kotlin的文章<a href="https://www.jianshu.com/p/a05b10976b08" target="_blank" rel="noopener">《推荐一个Kotlin项目》</a>，APP名字叫 <a href="https://haoshi.co/wanandroid.apk" target="_blank" rel="noopener">玩Android</a>，那这篇介绍的是小程序版本的玩Android</p>
+<p><strong>上图</strong></p>
+<p><img src="https://upload-images.jianshu.io/upload_images/12337722-f814b44356053dbf.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt="项目截图"></p>
+<p>与APP版本的功能完全相同，但是在UI方面，使用的是微信风格，包括字体、颜色等等都严格按照小程序设计指南</p>
+<h1 id="项目介绍"><a href="#项目介绍" class="headerlink" title="项目介绍"></a>项目介绍</h1><ul>
+<li><p>Api当然还是用的<a href="https://www.wanandroid.com/blog/show/2" target="_blank" rel="noopener">hongyang玩Android开放Api</a>，只是在我使用的时候还是http协议，现在鸿神为了满足大家开发小程序的需求，<a href="https://www.wanandroid.com" target="_blank" rel="noopener">玩Android</a> 已全站迁至https</p>
+</li>
+<li><p>没有使用任何框架，到后来才知道有个官方框架<a href="https://github.com/Tencent/wepy" target="_blank" rel="noopener">wepy</a>，UI方面不会的就参考官方UI库<a href="https://github.com/Tencent/weui" target="_blank" rel="noopener">weui</a></p>
+</li>
+<li><p>css和js用的很菜，别太在意，都是现学现用，学以致用</p>
+</li>
+</ul>
+<h2 id="项目结构"><a href="#项目结构" class="headerlink" title="项目结构"></a>项目结构</h2><p><img src="https://upload-images.jianshu.io/upload_images/12337722-8d2ea3b8b3b6a79d.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt="这些目录基本都是固定的模式，具体作用参考小程序官方文档"></p>
+<p><img src="https://upload-images.jianshu.io/upload_images/12337722-71d3874c5bae5bc2.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt="about页面的文件，小程序本质就是mvvm架构"></p>
+<h2 id="自定义组件"><a href="#自定义组件" class="headerlink" title="自定义组件"></a>自定义组件</h2><p><strong>上拉加载更多动画load-more</strong></p>
+<p>小程序提供了下拉的动画的api，并没有提供上拉加载更多的动画，在<a href="https://github.com/Tencent/weui" target="_blank" rel="noopener">weui</a>库里有这个动画效果，拿来稍作修改使用。但是不能每个列表页面都写这样的有关样式和控制转态的代码，所以加以封装</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">Component(&#123;</span><br><span class="line">  /**</span><br><span class="line">   * 组件的属性列表</span><br><span class="line">   */</span><br><span class="line">  properties: &#123;</span><br><span class="line">    /**</span><br><span class="line">     * 定义了status属性，四个值对应四种状态</span><br><span class="line">     * hidden,loading,noData,noMoreData</span><br><span class="line">     */</span><br><span class="line">      status:&#123;</span><br><span class="line">        type:String,</span><br><span class="line">        value:&apos;hidden&apos;</span><br><span class="line">      &#125;</span><br><span class="line">  &#125;,</span><br><span class="line"></span><br><span class="line">  /**</span><br><span class="line">  * 组件的初始数据</span><br><span class="line">  */</span><br><span class="line">  data: &#123;</span><br><span class="line">    //初始状态隐藏</span><br><span class="line">    status: &apos;hidden&apos;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+<p><strong>使用</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">//xx.json 列表页面的json配置文件</span><br><span class="line">&#123;</span><br><span class="line">  ...</span><br><span class="line">  &quot;usingComponents&quot;: &#123;</span><br><span class="line">    &quot;load-more&quot;: &quot;../../components/load-more/load-more&quot;</span><br><span class="line">  &#125;</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">//xx.wxml 列表页面的布局文件</span><br><span class="line">&lt;load-more status=&apos;&#123;&#123;loadMoreStatus&#125;&#125;&apos; /&gt;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">//xx.js文件，控制转态</span><br><span class="line">const LOAD_MORE_HIDDEN = &apos;hidden&apos;</span><br><span class="line">this.setData(&#123;</span><br><span class="line">  loadMoreStatus: LOAD_MORE_HIDDEN</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+<p>这样用起来会省掉了多少模板代码，有点品味的程序员都会这么做️️<br>还有注册登录页面使用自定义表单组件my-input，都是出于代码复用的目的</p>
+<h2 id="列表页的封装"><a href="#列表页的封装" class="headerlink" title="列表页的封装"></a>列表页的封装</h2><p>每个列表页面都大致相似，区别就是有没有一个大图，或者有没有一个项目链接，所以对整个cell也提取成共有的wxml，有区别的地方用if语句，满足条件才渲染</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">&lt;wxs src=&quot;../../wxs/string.wxs&quot; module=&quot;tools&quot; /&gt;</span><br><span class="line">&lt;template name=&quot;list&quot;&gt;</span><br><span class="line">  &lt;scroll-view class=&apos;list&apos; scroll-y=&apos;true&apos;&gt;</span><br><span class="line">    &lt;view class=&apos;listItem&apos; hover-class=&apos;listItemActive&apos; wx:for=&apos;&#123;&#123;list&#125;&#125;&apos; wx:key=&apos;_id&apos; bindtap=&apos;link&apos; data-link=&apos;&#123;&#123;item.link&#125;&#125;&apos;&gt;</span><br><span class="line">      &lt;text class=&apos;title&apos;&gt;&#123;&#123;tools.replace(item.title)&#125;&#125;&lt;/text&gt;</span><br><span class="line">      //if条件成立，则渲染image标签</span><br><span class="line">      &lt;image class=&apos;imageBig&apos; wx:if=&apos;&#123;&#123;item.envelopePic&#125;&#125;&apos; hidden=&apos;&#123;&#123;!item.envelopePic&#125;&#125;&apos; mode=&apos;widthFix&apos; src=&apos;&#123;&#123;item.envelopePic&#125;&#125;&apos; /&gt;</span><br><span class="line">      &lt;view class=&apos;bottom&apos; hover-stop-propagation=&apos;true&apos;&gt;</span><br><span class="line">        &lt;view class=&apos;info&apos;&gt;</span><br><span class="line">          &lt;text class=&apos;author&apos; wx:if=&apos;&#123;&#123;!hiddenAuthor&#125;&#125;&apos; hidden=&apos;&#123;&#123;hiddenAuthor&#125;&#125;&apos; space=&apos;nbsp&apos;&gt;&#123;&#123;item.author&#125;&#125;  &lt;/text&gt;</span><br><span class="line">          &lt;text class=&apos;time&apos;&gt;&#123;&#123;item.niceDate&#125;&#125;&lt;/text&gt;</span><br><span class="line">          &lt;view class=&apos;link&apos; hover-class=&apos;linkActive&apos; wx:if=&apos;&#123;&#123;item.projectLink&#125;&#125;&apos; hidden=&apos;&#123;&#123;!item.projectLink&#125;&#125;&apos; catchtap=&apos;link&apos; data-link=&apos;&#123;&#123;item.projectLink&#125;&#125;&apos;&gt;項目鏈接&lt;/view&gt;</span><br><span class="line">        &lt;/view&gt;</span><br><span class="line">        &lt;image class=&apos;fav&apos; catchtap=&apos;fav&apos; data-index=&apos;&#123;&#123;index&#125;&#125;&apos; src=&quot;&#123;&#123;(item.collect || fav)?&apos;../../images/ic_fav_1.png&apos;:&apos;../../images/ic_fav_0.png&apos;&#125;&#125;&quot; /&gt;</span><br><span class="line">      &lt;/view&gt;</span><br><span class="line">    &lt;/view&gt;</span><br><span class="line">  &lt;/scroll-view&gt;</span><br><span class="line">  &lt;load-more status=&apos;&#123;&#123;loadMoreStatus&#125;&#125;&apos; /&gt;</span><br><span class="line">&lt;/template&gt;</span><br></pre></td></tr></table></figure>
+<p>里边也还有的上拉刷新、下拉刷新和点赞的逻辑也是相同的，无非就是调用的api接口方法不同，但是在函数式编程面前这些都变得so easy，我们可以把调用接口的地方封装成方法作为参数传递</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">load: function(page, success, fail) &#123;</span><br><span class="line">  API.getHot(page, success, fail)</span><br><span class="line">&#125;,</span><br><span class="line"></span><br><span class="line">onLoad: function(options) &#123;</span><br><span class="line">  ...</span><br><span class="line">  //传递load方法，</span><br><span class="line">  LOAD_LIST_PROXY.setPage(this, this.load)</span><br><span class="line">  ...</span><br><span class="line">&#125;,</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">this.setPage = function(p, fun, callback) &#123;</span><br><span class="line">  that = p</span><br><span class="line">  //注意看这里，保存方法的引用</span><br><span class="line">  loadFun = fun</span><br><span class="line">  dataCallback = callback</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"> /**</span><br><span class="line">   * 刷新</span><br><span class="line">   */</span><br><span class="line">this.refresh = function() &#123;</span><br><span class="line">  ...</span><br><span class="line">  loadFun(page,</span><br><span class="line">    data =&gt; this.refreshFinished(data),</span><br><span class="line">    errorMsg =&gt; this.refreshFail(errorMsg)</span><br><span class="line">  )</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="EventBus"><a href="#EventBus" class="headerlink" title="EventBus"></a>EventBus</h2><p>观察者模式，在用户状态改变时，刷新列表，改变收藏状态</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line">var events = &#123;&#125;  //保存观察者</span><br><span class="line"></span><br><span class="line">/**</span><br><span class="line"> * 注册</span><br><span class="line"> */</span><br><span class="line">function register(name, self, callback) &#123;</span><br><span class="line">  var arr = [self, callback]</span><br><span class="line">  var callbacks = events[name]</span><br><span class="line">  if (Array.isArray(callbacks)) &#123;</span><br><span class="line">    callbacks.push(arr)</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    events[name] = [arr]</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">/**</span><br><span class="line"> * 反注册</span><br><span class="line"> */</span><br><span class="line">function unregister(name, self) &#123;</span><br><span class="line">  var callbacks = events[name]</span><br><span class="line">  if (Array.isArray(callbacks)) &#123;</span><br><span class="line">    events[name] = callbacks.filter((arr) =&gt; &#123;</span><br><span class="line">      return arr[0] != self</span><br><span class="line">    &#125;)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">/**</span><br><span class="line"> * 发送，通知观察者</span><br><span class="line"> */</span><br><span class="line">function send(name, data) &#123;</span><br><span class="line">  var callbacks = events[name]</span><br><span class="line">  if (Array.isArray(callbacks)) &#123;</span><br><span class="line">    callbacks.map((arr) =&gt; &#123;</span><br><span class="line">      var self = arr[0]</span><br><span class="line">      var callback = arr[1]</span><br><span class="line">      console.error(callback)</span><br><span class="line">      callback(self, data)</span><br><span class="line">    &#125;)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>使用</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">onLoad: function(options) &#123;</span><br><span class="line">  //在onLoad生命周期（页面加载）中注册观察者</span><br><span class="line">  EVENT.register(&apos;UserChanged&apos;, this, function() &#123;</span><br><span class="line">    //收到通知，标记</span><br><span class="line">    isRefresh = true</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;,</span><br><span class="line"></span><br><span class="line">onUnload: function() &#123;</span><br><span class="line">  //在onUnload生命周期（页面卸载）中移除观察者</span><br><span class="line">  EVENT.unregister(&apos;UserChanged&apos;, this)</span><br><span class="line">&#125;,</span><br><span class="line"></span><br><span class="line">onShow: function() &#123;</span><br><span class="line">  //在onShow生命周期（页面显示，或者从后台到前台显示）中根据标记判断是否刷新列表</span><br><span class="line">  if (isRefresh) &#123;</span><br><span class="line">    isRefresh = false</span><br><span class="line">    wx.startPullDownRefresh()</span><br><span class="line">  &#125;</span><br><span class="line">&#125;,</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">//发送一个事件</span><br><span class="line">EVENT.send(&apos;UserChanged&apos;, &apos;&apos;)</span><br></pre></td></tr></table></figure>
+<h1 id="web-view，你是我哥"><a href="#web-view，你是我哥" class="headerlink" title="web-view，你是我哥"></a>web-view，你是我哥</h1><p>小程序只支持https协议，在正式版会对业务域名和ssl进行校验，在开发时可以把开发工具里的校验的功能给设置关闭状，所以一直就没在意域名等问题，等到项目完成的差不多，很得意的准备上线的时候，才想起这个这个事。Api是http协议的，不能上线，很不甘心，所以就有了之后的购买阿里云服务器，注册域名，学习nginx的简单配置及使用，配置ssl证书，做了nginx反向代理</p>
+<p><strong>这点小事能难住我</strong></p>
+<p>万事俱备，只等上线</p>
+<p>然而，并不是想象中的那样，web-view组件打不开，经过百度和查看小程序官方文档，发现</p>
+<p><img src="https://upload-images.jianshu.io/upload_images/12337722-2cbc32e8738a7765.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt="web-view组件的说明"></p>
+<p><strong>我能等到web-view支持个人小程序使用的时候吗？</strong></p>
+<p>联系小伙伴何老板准备把项目注册成他公司下面的小程序，注册费用300块我还是能付的起的</p>
+<p>先看一下项目中使用了多少个域名，好在微信公众平台进行业务域名的配置。打log，加载数据，上拉玩命加载…… </p>
+<p>差点哭了，从log中看域名已经超过了10个，有公众号、csdn、掘金、简书、微博等等，即便成了企业类型的小程序，微信公众平台最多可配置10个业务域名，还是会有些网页打不开，并不完美</p>
+<p>放弃使用web-view，又省了300块</p>
+<p>无奈，禁用所有想要跳转到web-view页面的点击事件，赶脚整个项目被掏空了</p>
+<hr>
+<p><strong>项目上线发布了，行尸走肉型的，保证你看不到一个web-view</strong><br>（<em>当然，你可以下载源码，去掉cell点击事件的注释，自己编译预览</em>）</p>
+<p><strong>但收获颇丰</strong><br><strong>小程序的开发流程，nginx端口重定向、反向代理，css和js也都有所收获</strong></p>
+<p><strong>再次感谢 <a href="https://www.wanandroid.com/blog/show/2" target="_blank" rel="noopener">hongyang玩Android开放Api</a></strong><br><em>使用玩Android开放Api的同学请注意，玩Android已迁移到https</em></p>
+<p><strong>本项目地址</strong> <a href="https://github.com/haoshiy/wechat_wanandroid" target="_blank" rel="noopener">Github传送门</a></p>
+<p><img src="https://upload-images.jianshu.io/upload_images/12337722-a5ef77c805cbcb36.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt="微信扫码打开小程序"></p>
+<p><strong>End</strong></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">Wecaht</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2019/03/13/wandroid_wechat/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-wanandroid" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -285,6 +525,202 @@
 
 
   
+    <article id="post-activity_2" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/03/04/activity_2/">推荐一个Kotlin项目</a>
+    </h1>
+  
+
+        
+        <a href="/2019/03/04/activity_2/" class="archive-article-date">
+  	<time datetime="2019-03-04T13:44:00.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-03-04</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>接上一篇<a href="https://www.jianshu.com/p/4d3d2d757889" target="_blank" rel="noopener">《Activity页面加载流程(一)》</a></p>
+<p>上一篇讲了Window的创建，但其显示流程还没有讲清楚就跑路了</p>
+<p><strong>废话不多说，我们continue</strong><br>PS：<em>英文用错了场景别笑话，谁让它是关键词字😊😊</em><br>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;<em>这个单词拼不成汉语吧😊😊</em></p>
+<h1 id="WindowManager、WindowManagerImpl和WindowManagerGlobal的关系及内部机制"><a href="#WindowManager、WindowManagerImpl和WindowManagerGlobal的关系及内部机制" class="headerlink" title="WindowManager、WindowManagerImpl和WindowManagerGlobal的关系及内部机制"></a>WindowManager、WindowManagerImpl和WindowManagerGlobal的关系及内部机制</h1><p>WindowManager是一个继承于ViewManager的接口，实现类是WindowManagerImpl</p>
+<p><strong>Activity.java</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">final void attach(...)&#123;</span><br><span class="line">  ...</span><br><span class="line">  mWindow.setWindowManager(</span><br><span class="line">  (WindowManager)context.getSystemService(Context.WINDOW_SERVICE),  //系统的WindowManger</span><br><span class="line">        mToken, mComponent.flattenToString(),</span><br><span class="line">        (info.flags &amp; ActivityInfo.FLAG_HARDWARE_ACCELERATED) != 0);</span><br><span class="line">  ...</span><br><span class="line">  mWindowManager = mWindow.getWindowManager();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><strong>Window.java</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">public void setWindowManager(WindowManager wm, IBinder appToken, String appName, boolean hardwareAccelerated) &#123;</span><br><span class="line">  ...</span><br><span class="line">  //wm的createLocalWindowManager方法又重新new了WindowManagerImpl</span><br><span class="line">  mWindowManager = ((WindowManagerImpl)wm).createLocalWindowManager(this);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public WindowManager getWindowManager() &#123;</span><br><span class="line">  return mWindowManager;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><strong>WindowManagerImpl.java</strong><br>WindowManagerImpl是WindowManager的实现类，显实现了addView、updateViewLayout、removeView等方法，可是这哥们胸怀宇宙，有空还要看星星，别看它是一个实现类，名字还带一个Impl，却把具体工作都交给了单例的WindowManagerGlobal。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">public final class WindowManagerImpl implements WindowManager &#123;</span><br><span class="line">  //全局单例</span><br><span class="line">  private final WindowManagerGlobal mGlobal = WindowManagerGlobal.getInstance();</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line">  @Override</span><br><span class="line">  public void addView(@NonNull View view, @NonNull ViewGroup.LayoutParams params) &#123;</span><br><span class="line">    applyDefaultToken(params);</span><br><span class="line">    mGlobal.addView(view, params, mContext.getDisplay(), mParentWindow);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  @Override</span><br><span class="line">  public void updateViewLayout(@NonNull View view, @NonNull ViewGroup.LayoutParams params) &#123;</span><br><span class="line">    applyDefaultToken(params);</span><br><span class="line">    mGlobal.updateViewLayout(view, params);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  @Override</span><br><span class="line">  public void removeView(View view) &#123;</span><br><span class="line">    mGlobal.removeView(view, false);</span><br><span class="line">  &#125;</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>WindowManagerGlobal.java</strong><br>WindowManagerGlobal是单例的，所以它内部用几个集合来保存Window及参数和所对应的View</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">//每个Window对应的View</span><br><span class="line">private final ArrayList&lt;View&gt; mViews = new ArrayList&lt;View&gt;();</span><br><span class="line">//每个Window对应的ViewRootImpl</span><br><span class="line">private final ArrayList&lt;ViewRootImpl&gt; mRoots = new ArrayList&lt;ViewRootImpl&gt;();</span><br><span class="line">//每个Window的参数</span><br><span class="line">private final ArrayList&lt;WindowManager.LayoutParams&gt; mParams = new ArrayList&lt;WindowManager.LayoutParams&gt;();</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">public void addView(View view, ViewGroup.LayoutParams params, Display display, Window parentWindow) &#123;</span><br><span class="line"></span><br><span class="line">  ViewRootImpl root;</span><br><span class="line">  ...</span><br><span class="line">  //创建ViewRootImpl，View的invalidate更新view的时候，就是从ViewRootImpl开始的</span><br><span class="line">  root = new ViewRootImpl(view.getContext(), display);</span><br><span class="line">  view.setLayoutParams(wparams);</span><br><span class="line">  ....</span><br><span class="line">  //上面的三个集合</span><br><span class="line">  mViews.add(view);</span><br><span class="line">  mRoots.add(root);</span><br><span class="line">  mParams.add(wparams);</span><br><span class="line"></span><br><span class="line">  // do this last because it fires off messages to start doing things</span><br><span class="line">  try &#123;</span><br><span class="line">    //重要方法</span><br><span class="line">    root.setView(view, wparams, panelParentView);</span><br><span class="line">  &#125;</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h1 id="Window的显示"><a href="#Window的显示" class="headerlink" title="Window的显示"></a>Window的显示</h1><p>WindowManagerService作为一个系统级的服务运行在一个单独的进程，所以WindowManager和它之间的交互是一个IPC(进程间通信)过程，ViewRootImpl充当了桥梁的作为</p>
+<p>通过Binder机制获取WMS，在WindowManagerService获取舒适化Session,进而通过session的addToDisplay方法和WMS的addWindow添加到将Window添加到设备</p>
+<p><strong>ViewRootImpl.java</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">final IWindowSession mWindowSession;</span><br><span class="line"></span><br><span class="line">public ViewRootImpl(Context context, Display display) &#123;</span><br><span class="line">  ...</span><br><span class="line">  //在构造方法里调用WindowManagerGlobal的static方法getWindowSession()初始化IWindowSession</span><br><span class="line">  mWindowSession = WindowManagerGlobal.getWindowSession();</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public void setView(View view, WindowManager.LayoutParams attrs, View panelParentView) &#123;</span><br><span class="line">  ...</span><br><span class="line">  //开始View的三大流程，测量、布局和绘制</span><br><span class="line">  requestLayout();</span><br><span class="line">  ...</span><br><span class="line">  try &#123;</span><br><span class="line">    ...</span><br><span class="line">    //显示</span><br><span class="line">    res = mWindowSession.addToDisplay(mWindow,  ...);</span><br><span class="line">    ...</span><br><span class="line">  &#125; </span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><strong>WindowManagerGlobal.java</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">public static IWindowSession getWindowSession() &#123;</span><br><span class="line">  synchronized (WindowManagerGlobal.class) &#123;</span><br><span class="line">    if (sWindowSession == null) &#123;</span><br><span class="line">      try &#123;</span><br><span class="line">        InputMethodManager imm = InputMethodManager.getInstance();</span><br><span class="line">        IWindowManager windowManager = getWindowManagerService();</span><br><span class="line">        //从WindowManagerService里获取WindowSession</span><br><span class="line">        sWindowSession = windowManager.openSession(</span><br><span class="line">          new IWindowSessionCallback.Stub() &#123;</span><br><span class="line">            @Override</span><br><span class="line">            public void onAnimatorScaleChanged(float scale) &#123;</span><br><span class="line">              ValueAnimator.setDurationScale(scale);</span><br><span class="line">            &#125;</span><br><span class="line">          &#125;,</span><br><span class="line">          imm.getClient(), imm.getInputContext());ffgetWindowManagerService</span><br><span class="line">      &#125; catch (RemoteException e) &#123;</span><br><span class="line">        throw e.rethrowFromSystemServer();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  return sWindowSession;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public static IWindowManager getWindowManagerService() &#123;</span><br><span class="line">  synchronized (WindowManagerGlobal.class) &#123;</span><br><span class="line">    if (sWindowManagerService == null) &#123;</span><br><span class="line">      //从binder里获取WindowManagerService</span><br><span class="line">      sWindowManagerService = IWindowManager.Stub.asInterface(ServiceManager.getService(&quot;window&quot;));</span><br><span class="line">      try &#123;</span><br><span class="line">        if (sWindowManagerService != null) &#123;</span><br><span class="line">          ValueAnimator.setDurationScale(sWindowManagerService.getCurrentAnimatorScale());</span><br><span class="line">        &#125;</span><br><span class="line">      &#125; catch (RemoteException e) &#123;</span><br><span class="line">        throw e.rethrowFromSystemServer();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  return sWindowManagerService;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><strong>WindowManagerService.java</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">public IWindowSession openSession(IWindowSessionCallback callback, IInputMethodClient client, IInputContext inputContext) &#123;</span><br><span class="line">  if (client == null) throw new IllegalArgumentException(&quot;null client&quot;);</span><br><span class="line">  if (inputContext == null) throw new IllegalArgumentException(&quot;null inputContext&quot;);</span><br><span class="line">  //Session就在这里创建，Session和WindowManagerService相互持有</span><br><span class="line">  Session session = new Session(this, callback, client, inputContext);</span><br><span class="line">  return session;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><strong>Session.java</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">public int addToDisplay(IWindow window, ...) &#123;</span><br><span class="line">  //这里调用WMS的addWindow方法</span><br><span class="line">  return mService.addWindow(this, window, ...);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>Window已经显示了<br>Activity的页面加载流程已经结束，涉及到的类比较多，可能有说的不明的或错误的地方，请谅解</p>
+<hr>
+<p><strong>源码一个class动辄万行，内部类N多个</strong><br><strong>是不是脑壳疼</strong><br><strong>疼就对了</strong><br><strong>不然你以为你zou是谷歌开发工程师了</strong></p>
+<p><strong>然</strong><br><strong>不进则退</strong><br><strong>学习还是必须的</strong><br><strong>没有什么比自身的强大更重要</strong><br><strong>你想要的</strong><br><strong>时间都会给你</strong></p>
+<p><strong>学会自我约束</strong><br><strong>才能自我自由</strong></p>
+<p><em>鸡汤是给你们喝的，我喜欢吃肉</em></p>
+<p><strong>End</strong></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">Activity</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2019/03/04/activity_2/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-activity_1" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/03/02/activity_1/">推荐一个Kotlin项目</a>
+    </h1>
+  
+
+        
+        <a href="/2019/03/02/activity_1/" class="archive-article-date">
+  	<time datetime="2019-03-02T04:57:20.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-03-02</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>一直对F码抱有一种敬畏之心，所以能不看就不看☺️。虽然看了很多关于Activity创建流程的技术文章，但也仅仅是休闲式的，只看不动手，当时感觉看的很明白，没过几天就又还给作者了，下次遇见此类问题，还是一脸懵逼。痛定思痛，决定自己看一下F码，再做个笔记，加深印象，也便于回顾。</p>
+<p>大家都听说过Activity，Window，PhoneWindow，WindowManager，WindowManagerImpl，WindowManagerGlobal，WindowManagerServer，ViewRoot，ViewRootImpl等这些class吧，如果你和我一样对它们的关系一知半解，那么这个笔记很适合你。<strong>最好打开AS，跟着源码走一走</strong></p>
+<p><strong>表演开始，这次不要🤮，会不会又跑路？？？😱</strong></p>
+<p>首先在ActivityThread的performLaunchActivity方法通过反射创建Activity，activity调用attach方法创建PhoneWindow；activity执行onCreate生命周期，setContentView(int)经过层层调用执行PhoneWindow的setContentView(View)方法，然后创建根布局DecorView，DecorView包含一个contentParent，我们setContentView就是把自己的页面添加到contentParent里面，现在页面已经建成，但还没有显示，接下来看ActivityThread的handleResumeActivity方法，activity调用makeVisible方法，mDecor.setVisibility(View.VISIBLE)显示</p>
+<h1 id="先说一下Window"><a href="#先说一下Window" class="headerlink" title="先说一下Window"></a>先说一下Window</h1><p>有View的地方就有Window<br>Window分三大类，本文所讲的Window是应用程序Window</p>
+<ol>
+<li><p>系统Window<br>例如Toast、输入法、低电量提示所对应的window</p>
+</li>
+<li><p>应用程序Window<br>例如Activity所对应的window。每个Activity都有一个window，通过getWindow获取，这里的返回的Window实际上PhoneWindow，Window是一个抽象类，具体实现类就是PhoneWindow</p>
+</li>
+<li><p>子Window<br>例如PopWindow</p>
+</li>
+</ol>
+<p>在WindowManager里面可以看到又对Window的种类进行了细化，细化后的每种类型的Window都对应一个int类型的常量值，这个值越大，在Window层叠的时候就越靠上</p>
+<h1 id="Activity和Window的创建"><a href="#Activity和Window的创建" class="headerlink" title="Activity和Window的创建"></a>Activity和Window的创建</h1><p><strong>ActivityThread.java</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">private Activity performLaunchActivity(ActivityClientRecord r, Intent customIntent) &#123;</span><br><span class="line">  ...</span><br><span class="line">  //通过反射创建一个Activity</span><br><span class="line">  activity = mInstrumentation.newActivity(cl, component.getClassName(), r.intent);</span><br><span class="line">  ...</span><br><span class="line">  //调用attach(...)，创建Window</span><br><span class="line">  activity.attach(...); </span><br><span class="line">  ...</span><br><span class="line">  //调用callActivityOnCreate(...)，Activity执行onCreate</span><br><span class="line">  mInstrumentation.callActivityOnCreate(...);  </span><br><span class="line">  ...</span><br><span class="line">  return activity;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><strong>Activity.java</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">final void attach(...) &#123;</span><br><span class="line">  ...</span><br><span class="line">  //创建Window</span><br><span class="line">  mWindow = new PhoneWindow(this, window, activityConfigCallback);</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h1 id="页面显示"><a href="#页面显示" class="headerlink" title="页面显示"></a>页面显示</h1><p><strong>Activity.java</strong><br>调用父类AppCompatActivity的setContentView方法<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">setContentView(R.layout.activity_main);</span><br></pre></td></tr></table></figure></p>
+<p><strong>AppCompatActivity.java</strong><br>AppCompatDelegate是一个接口，getDelegate返回AppCompatDelegate的实现类AppCompatDelegateImpl,所以此处又调用AppCompatDelegateImpl的setContentView(int)方法<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">public void setContentView(@LayoutRes int layoutResID) &#123;</span><br><span class="line">    this.getDelegate().setContentView(layoutResID);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">@NonNull</span><br><span class="line">public AppCompatDelegate getDelegate() &#123;</span><br><span class="line">  if (this.mDelegate == null) &#123;</span><br><span class="line">     this.mDelegate = AppCompatDelegate.create(this, this);</span><br><span class="line">  &#125;</span><br><span class="line">  return this.mDelegate;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public static AppCompatDelegate create(Activity activity, AppCompatCallback callback) &#123;</span><br><span class="line">  return new AppCompatDelegateImpl(activity, activity.getWindow(), callback);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><strong>AppCompatDelegateImpl.java</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">public void setContentView(int resId) &#123;</span><br><span class="line">  this.ensureSubDecor();      //重要方法，安装DecorView</span><br><span class="line">  ViewGroup contentParent = (ViewGroup)this.mSubDecor.findViewById(16908290);</span><br><span class="line">  contentParent.removeAllViews();</span><br><span class="line">  LayoutInflater.from(this.mContext).inflate(resId, contentParent);</span><br><span class="line">  this.mOriginalWindowCallback.onContentChanged();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">private void ensureSubDecor() &#123;</span><br><span class="line">  if (!this.mSubDecorInstalled) &#123;</span><br><span class="line">    this.mSubDecor = this.createSubDecor();</span><br><span class="line">     ...</span><br><span class="line">   &#125;</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">private ViewGroup createSubDecor() &#123;</span><br><span class="line">  ...</span><br><span class="line">  //mWindow是PhoneWindow</span><br><span class="line">  this.mWindow.getDecorView();</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><strong>PhoneWindow.java</strong><br>生成跟布局DecorView，DecorView继承FrameLayout，包括标题栏和内容部分（mContentParent），我们setContentView就是把view添加到mContentParent<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">public final View getDecorView() &#123;</span><br><span class="line">  if (mDecor == null || mForceDecorInstall) &#123;</span><br><span class="line">    installDecor();</span><br><span class="line">  &#125;</span><br><span class="line">  return mDecor;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">private void installDecor() &#123;</span><br><span class="line">  ...</span><br><span class="line">  if (mDecor == null) &#123;</span><br><span class="line">    mDecor = generateDecor(-1);</span><br><span class="line">    ...</span><br><span class="line">  &#125;</span><br><span class="line">  if (mContentParent == null) &#123;</span><br><span class="line">    //内容布局，Activity里面的setContentView就放到mContentParent里面</span><br><span class="line">    mContentParent = generateLayout(mDecor);</span><br><span class="line">  &#125;</span><br><span class="line">  ...</span><br><span class="line">  //把我们的布局添加到Content里面</span><br><span class="line">  mContentParent.addView(view, params);</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">protected DecorView generateDecor(int featureId) &#123;</span><br><span class="line">  ...</span><br><span class="line">  return new DecorView(context, featureId, this, getAttributes());</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">protected ViewGroup generateLayout(DecorView decor) &#123;</span><br><span class="line">  ...</span><br><span class="line">  //findViewById调用DecorView的findViewById，contentParent是DecorView的id为com.android.internal.R.id.content的子view</span><br><span class="line">  //Window的常量 public static final int ID_ANDROID_CONTENT = com.android.internal.R.id.content;</span><br><span class="line">  ViewGroup contentParent = (ViewGroup)findViewById(ID_ANDROID_CONTENT);</span><br><span class="line">  ...</span><br><span class="line">  return contentParent;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><strong>ActivityThread.java</strong><br>回到ActivityThread<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">public void handleResumeActivity(IBinder token, boolean finalStateRequest, boolean isForward,String reason) &#123;</span><br><span class="line">  ...</span><br><span class="line">  //显示View</span><br><span class="line">  r.activity.makeVisible();</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><strong>Activity.java</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">void makeVisible() &#123;</span><br><span class="line">  if (!mWindowAdded) &#123;</span><br><span class="line">    ViewManager wm = getWindowManager();</span><br><span class="line">    wm.addView(mDecor, getWindow().getAttributes());</span><br><span class="line">    mWindowAdded = true;</span><br><span class="line">  &#125;</span><br><span class="line">  //显示DecorView</span><br><span class="line">  mDecor.setVisibility(View.VISIBLE);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>到此页面已经显示了，那么WindowManager怎么让Window显示在页面上的？下篇再进行分析…</p>
+<p><strong>第一次写技术文章，错误之处请包涵并指正</strong></p>
+<p><strong>Thanks</strong></p>
+<p><strong>End</strong></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">Activity</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2019/03/02/activity_1/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
   
 
 
@@ -376,6 +812,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Kotlin</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">Activity</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Wecaht</a>
               </li>
             
             <div class="clearfix"></div>
