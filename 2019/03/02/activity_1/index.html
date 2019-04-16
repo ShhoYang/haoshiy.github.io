@@ -16,7 +16,7 @@
 <meta property="og:site_name" content="我的博客|豪世-世界的世">
 <meta property="og:description" content="一直对F码抱有一种敬畏之心，所以能不看就不看☺️。虽然看了很多关于Activity创建流程的技术文章，但也仅仅是休闲式的，只看不动手，当时感觉看的很明白，没过几天就又还给作者了，下次遇见此类问题，还是一脸懵逼。痛定思痛，决定自己看一下F码，再做个笔记，加深印象，也便于回顾。 大家都听说过Activity，Window，PhoneWindow，WindowManager，WindowManagerI">
 <meta property="og:locale" content="default">
-<meta property="og:updated_time" content="2019-04-16T15:41:11.525Z">
+<meta property="og:updated_time" content="2019-04-16T15:46:41.449Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Activity页面加载流程(一)">
 <meta name="twitter:description" content="一直对F码抱有一种敬畏之心，所以能不看就不看☺️。虽然看了很多关于Activity创建流程的技术文章，但也仅仅是休闲式的，只看不动手，当时感觉看的很明白，没过几天就又还给作者了，下次遇见此类问题，还是一脸懵逼。痛定思痛，决定自己看一下F码，再做个笔记，加深印象，也便于回顾。 大家都听说过Activity，Window，PhoneWindow，WindowManager，WindowManagerI">
@@ -178,8 +178,8 @@
         <p>一直对F码抱有一种敬畏之心，所以能不看就不看☺️。虽然看了很多关于Activity创建流程的技术文章，但也仅仅是休闲式的，只看不动手，当时感觉看的很明白，没过几天就又还给作者了，下次遇见此类问题，还是一脸懵逼。痛定思痛，决定自己看一下F码，再做个笔记，加深印象，也便于回顾。</p>
 <p>大家都听说过Activity，Window，PhoneWindow，WindowManager，WindowManagerImpl，WindowManagerGlobal，WindowManagerServer，ViewRoot，ViewRootImpl等这些class吧，如果你和我一样对它们的关系一知半解，那么这个笔记很适合你。<strong>最好打开AS，跟着源码走一走</strong></p>
 <p><strong>表演开始，这次不要🤮，会不会又跑路？？？😱</strong></p>
+<a id="more"></a>
 <p>首先在ActivityThread的performLaunchActivity方法通过反射创建Activity，activity调用attach方法创建PhoneWindow；activity执行onCreate生命周期，setContentView(int)经过层层调用执行PhoneWindow的setContentView(View)方法，然后创建根布局DecorView，DecorView包含一个contentParent，我们setContentView就是把自己的页面添加到contentParent里面，现在页面已经建成，但还没有显示，接下来看ActivityThread的handleResumeActivity方法，activity调用makeVisible方法，mDecor.setVisibility(View.VISIBLE)显示</p>
-<p>&lt; !–more–&gt;</p>
 <h1 id="先说一下Window"><a href="#先说一下Window" class="headerlink" title="先说一下Window"></a>先说一下Window</h1><p>有View的地方就有Window<br>Window分三大类，本文所讲的Window是应用程序Window</p>
 <ol>
 <li><p>系统Window<br>例如Toast、输入法、低电量提示所对应的window</p>
