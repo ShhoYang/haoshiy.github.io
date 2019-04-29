@@ -6,20 +6,15 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <link rel="dns-prefetch" href="http://yoursite.com">
-  <title>Activity页面加载流程(一) | 我的博客|豪世-世界的世</title>
+  <title>Tag: 游记 | 我的博客|豪世-世界的世</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="一直对F码抱有一种敬畏之心，所以能不看就不看☺️。虽然看了很多关于Activity创建流程的技术文章，但也仅仅是休闲式的，只看不动手，当时感觉看的很明白，没过几天就又还给作者了，下次遇见此类问题，还是一脸懵逼。痛定思痛，决定自己看一下F码，再做个笔记，加深印象，也便于回顾。 大家都听说过Activity，Window，PhoneWindow，WindowManager，WindowManagerI">
-<meta name="keywords" content="Activity">
-<meta property="og:type" content="article">
-<meta property="og:title" content="Activity页面加载流程(一)">
-<meta property="og:url" content="http://yoursite.com/2019/03/02/activity_1/index.html">
+  <meta property="og:type" content="website">
+<meta property="og:title" content="我的博客|豪世-世界的世">
+<meta property="og:url" content="http://yoursite.com/tags/游记/index.html">
 <meta property="og:site_name" content="我的博客|豪世-世界的世">
-<meta property="og:description" content="一直对F码抱有一种敬畏之心，所以能不看就不看☺️。虽然看了很多关于Activity创建流程的技术文章，但也仅仅是休闲式的，只看不动手，当时感觉看的很明白，没过几天就又还给作者了，下次遇见此类问题，还是一脸懵逼。痛定思痛，决定自己看一下F码，再做个笔记，加深印象，也便于回顾。 大家都听说过Activity，Window，PhoneWindow，WindowManager，WindowManagerI">
 <meta property="og:locale" content="zh-CN">
-<meta property="og:updated_time" content="2019-04-16T15:46:41.449Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Activity页面加载流程(一)">
-<meta name="twitter:description" content="一直对F码抱有一种敬畏之心，所以能不看就不看☺️。虽然看了很多关于Activity创建流程的技术文章，但也仅仅是休闲式的，只看不动手，当时感觉看的很明白，没过几天就又还给作者了，下次遇见此类问题，还是一脸懵逼。痛定思痛，决定自己看一下F码，再做个笔记，加深印象，也便于回顾。 大家都听说过Activity，Window，PhoneWindow，WindowManager，WindowManagerI">
+<meta name="twitter:title" content="我的博客|豪世-世界的世">
   
     <link rel="alternative" href="/atom.xml" title="我的博客|豪世-世界的世" type="application/atom+xml">
   
@@ -158,125 +153,60 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-activity_1" class="article article-type-post " itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
+            
   
-    <h1 class="article-title" itemprop="name">
-      Activity页面加载流程(一)
+  
+    
+    
+      
+      
+      <section class="archives-wrap">
+        <div class="archive-year-wrap">
+          <a href="/archives/2019" class="archive-year">2019</a>
+        </div>
+        <div class="archives">
+    
+    <article class="archive-article archive-type-post">
+  <div class="archive-article-inner">
+    <header class="archive-article-header">
+      	<div class="article-meta">
+	      	<a href="/2019/04/29/hunan/" class="archive-article-date">
+  	<time datetime="2019-04-29T04:00:00.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-04-29</time>
+</a>
+        </div>
+    	 
+  
+    <h1 itemprop="name">
+      <a class="archive-article-title" href="/2019/04/29/hunan/">RecyclerView的缓存机制</a>
     </h1>
   
 
-        
-        <a href="/2019/03/02/activity_1/" class="archive-article-date">
-  	<time datetime="2019-03-02T04:57:20.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-03-02</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>一直对F码抱有一种敬畏之心，所以能不看就不看☺️。虽然看了很多关于Activity创建流程的技术文章，但也仅仅是休闲式的，只看不动手，当时感觉看的很明白，没过几天就又还给作者了，下次遇见此类问题，还是一脸懵逼。痛定思痛，决定自己看一下F码，再做个笔记，加深印象，也便于回顾。</p>
-<p>大家都听说过Activity，Window，PhoneWindow，WindowManager，WindowManagerImpl，WindowManagerGlobal，WindowManagerServer，ViewRoot，ViewRootImpl等这些class吧，如果你和我一样对它们的关系一知半解，那么这个笔记很适合你。<strong>最好打开AS，跟着源码走一走</strong></p>
-<p><strong>表演开始，这次不要🤮，会不会又跑路？？？😱</strong></p>
-<a id="more"></a>
-<p>首先在ActivityThread的performLaunchActivity方法通过反射创建Activity，activity调用attach方法创建PhoneWindow；activity执行onCreate生命周期，setContentView(int)经过层层调用执行PhoneWindow的setContentView(View)方法，然后创建根布局DecorView，DecorView包含一个contentParent，我们setContentView就是把自己的页面添加到contentParent里面，现在页面已经建成，但还没有显示，接下来看ActivityThread的handleResumeActivity方法，activity调用makeVisible方法，mDecor.setVisibility(View.VISIBLE)显示</p>
-<h1 id="先说一下Window"><a href="#先说一下Window" class="headerlink" title="先说一下Window"></a>先说一下Window</h1><p>有View的地方就有Window<br>Window分三大类，本文所讲的Window是应用程序Window</p>
-<ol>
-<li><p>系统Window<br>例如Toast、输入法、低电量提示所对应的window</p>
-</li>
-<li><p>应用程序Window<br>例如Activity所对应的window。每个Activity都有一个window，通过getWindow获取，这里的返回的Window实际上PhoneWindow，Window是一个抽象类，具体实现类就是PhoneWindow</p>
-</li>
-<li><p>子Window<br>例如PopWindow</p>
-</li>
-</ol>
-<p>在WindowManager里面可以看到又对Window的种类进行了细化，细化后的每种类型的Window都对应一个int类型的常量值，这个值越大，在Window层叠的时候就越靠上</p>
-<h1 id="Activity和Window的创建"><a href="#Activity和Window的创建" class="headerlink" title="Activity和Window的创建"></a>Activity和Window的创建</h1><p><strong>ActivityThread.java</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">private Activity performLaunchActivity(ActivityClientRecord r, Intent customIntent) &#123;</span><br><span class="line">  ...</span><br><span class="line">  //通过反射创建一个Activity</span><br><span class="line">  activity = mInstrumentation.newActivity(cl, component.getClassName(), r.intent);</span><br><span class="line">  ...</span><br><span class="line">  //调用attach(...)，创建Window</span><br><span class="line">  activity.attach(...); </span><br><span class="line">  ...</span><br><span class="line">  //调用callActivityOnCreate(...)，Activity执行onCreate</span><br><span class="line">  mInstrumentation.callActivityOnCreate(...);  </span><br><span class="line">  ...</span><br><span class="line">  return activity;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p><strong>Activity.java</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">final void attach(...) &#123;</span><br><span class="line">  ...</span><br><span class="line">  //创建Window</span><br><span class="line">  mWindow = new PhoneWindow(this, window, activityConfigCallback);</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<h1 id="页面显示"><a href="#页面显示" class="headerlink" title="页面显示"></a>页面显示</h1><p><strong>Activity.java</strong><br>调用父类AppCompatActivity的setContentView方法<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">setContentView(R.layout.activity_main);</span><br></pre></td></tr></table></figure></p>
-<p><strong>AppCompatActivity.java</strong><br>AppCompatDelegate是一个接口，getDelegate返回AppCompatDelegate的实现类AppCompatDelegateImpl,所以此处又调用AppCompatDelegateImpl的setContentView(int)方法<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">public void setContentView(@LayoutRes int layoutResID) &#123;</span><br><span class="line">    this.getDelegate().setContentView(layoutResID);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">@NonNull</span><br><span class="line">public AppCompatDelegate getDelegate() &#123;</span><br><span class="line">  if (this.mDelegate == null) &#123;</span><br><span class="line">     this.mDelegate = AppCompatDelegate.create(this, this);</span><br><span class="line">  &#125;</span><br><span class="line">  return this.mDelegate;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public static AppCompatDelegate create(Activity activity, AppCompatCallback callback) &#123;</span><br><span class="line">  return new AppCompatDelegateImpl(activity, activity.getWindow(), callback);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p><strong>AppCompatDelegateImpl.java</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">public void setContentView(int resId) &#123;</span><br><span class="line">  this.ensureSubDecor();      //重要方法，安装DecorView</span><br><span class="line">  ViewGroup contentParent = (ViewGroup)this.mSubDecor.findViewById(16908290);</span><br><span class="line">  contentParent.removeAllViews();</span><br><span class="line">  LayoutInflater.from(this.mContext).inflate(resId, contentParent);</span><br><span class="line">  this.mOriginalWindowCallback.onContentChanged();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">private void ensureSubDecor() &#123;</span><br><span class="line">  if (!this.mSubDecorInstalled) &#123;</span><br><span class="line">    this.mSubDecor = this.createSubDecor();</span><br><span class="line">     ...</span><br><span class="line">   &#125;</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">private ViewGroup createSubDecor() &#123;</span><br><span class="line">  ...</span><br><span class="line">  //mWindow是PhoneWindow</span><br><span class="line">  this.mWindow.getDecorView();</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p><strong>PhoneWindow.java</strong><br>生成跟布局DecorView，DecorView继承FrameLayout，包括标题栏和内容部分（mContentParent），我们setContentView就是把view添加到mContentParent<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">public final View getDecorView() &#123;</span><br><span class="line">  if (mDecor == null || mForceDecorInstall) &#123;</span><br><span class="line">    installDecor();</span><br><span class="line">  &#125;</span><br><span class="line">  return mDecor;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">private void installDecor() &#123;</span><br><span class="line">  ...</span><br><span class="line">  if (mDecor == null) &#123;</span><br><span class="line">    mDecor = generateDecor(-1);</span><br><span class="line">    ...</span><br><span class="line">  &#125;</span><br><span class="line">  if (mContentParent == null) &#123;</span><br><span class="line">    //内容布局，Activity里面的setContentView就放到mContentParent里面</span><br><span class="line">    mContentParent = generateLayout(mDecor);</span><br><span class="line">  &#125;</span><br><span class="line">  ...</span><br><span class="line">  //把我们的布局添加到Content里面</span><br><span class="line">  mContentParent.addView(view, params);</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">protected DecorView generateDecor(int featureId) &#123;</span><br><span class="line">  ...</span><br><span class="line">  return new DecorView(context, featureId, this, getAttributes());</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">protected ViewGroup generateLayout(DecorView decor) &#123;</span><br><span class="line">  ...</span><br><span class="line">  //findViewById调用DecorView的findViewById，contentParent是DecorView的id为com.android.internal.R.id.content的子view</span><br><span class="line">  //Window的常量 public static final int ID_ANDROID_CONTENT = com.android.internal.R.id.content;</span><br><span class="line">  ViewGroup contentParent = (ViewGroup)findViewById(ID_ANDROID_CONTENT);</span><br><span class="line">  ...</span><br><span class="line">  return contentParent;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p><strong>ActivityThread.java</strong><br>回到ActivityThread<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">@Override</span><br><span class="line">public void handleResumeActivity(IBinder token, boolean finalStateRequest, boolean isForward,String reason) &#123;</span><br><span class="line">  ...</span><br><span class="line">  //显示View</span><br><span class="line">  r.activity.makeVisible();</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p><strong>Activity.java</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">void makeVisible() &#123;</span><br><span class="line">  if (!mWindowAdded) &#123;</span><br><span class="line">    ViewManager wm = getWindowManager();</span><br><span class="line">    wm.addView(mDecor, getWindow().getAttributes());</span><br><span class="line">    mWindowAdded = true;</span><br><span class="line">  &#125;</span><br><span class="line">  //显示DecorView</span><br><span class="line">  mDecor.setVisibility(View.VISIBLE);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>到此页面已经显示了，那么WindowManager怎么让Window显示在页面上的？下篇再进行分析…</p>
-<p><strong>第一次写技术文章，错误之处请包涵并指正</strong></p>
-<p><strong>Thanks</strong></p>
-<p><strong>End</strong></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
+        <div class="article-info info-on-right">
+          
 	<div class="article-tag tagcloud">
 		<i class="icon-price-tags icon"></i>
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">Activity</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">游记</a>
         		</li>
       		
 		</ul>
 	</div>
 
-      
+          
 
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
+        </div>
+        <div class="clearfix"></div>
+    </header>
   </div>
 </article>
-
-  
-<nav id="article-nav">
-  
-    <a href="/2019/03/04/activity_2/" id="article-nav-newer" class="article-nav-link-wrap">
-      <i class="icon-circle-left"></i>
-      <div class="article-nav-title">
-        
-          Activity页面加载流程(二)
-        
-      </div>
-    </a>
   
   
-</nav>
-
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-  
-  
+    </div></section>
   
 
-  
-
-  
-
-  
+    
 
 
           </div>
@@ -296,9 +226,9 @@
 	var yiliaConfig = {
 		mathjax: false,
 		isHome: false,
-		isPost: true,
+		isPost: false,
 		isArchive: false,
-		isTag: false,
+		isTag: true,
 		isCategory: false,
 		open_in_new: false,
 		toc_hide_index: true,
