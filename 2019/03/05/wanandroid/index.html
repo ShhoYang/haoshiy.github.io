@@ -16,17 +16,17 @@
 <meta property="og:site_name" content="我的博客|豪世-世界的世">
 <meta property="og:description" content="标题之所以没有使用优秀、优质等华丽的辞藻修饰，是因为这个项目是本人在学习Kotlin过程中用来练手的，不敢在各位前辈和大神面前班门弄斧，自取其辱，况且Github上的玩Android客户端已经有很多个版本了，我也很难望其项背 自Google在2017的I/O大会上宣布Android支持Kotlin，到现在Kotlin语言已受到大批Android开发者的追捧，许多大厂已经使用纯Kotlin进行And">
 <meta property="og:locale" content="zh-CN">
-<meta property="og:image" content="http://yoursite.com/assets/img/2019030501.png">
-<meta property="og:image" content="http://yoursite.com/assets/img/2019030502.png">
-<meta property="og:image" content="http://yoursite.com/assets/img/2019030503.png">
-<meta property="og:image" content="http://yoursite.com/assets/img/2019030504.png">
-<meta property="og:image" content="http://yoursite.com/2019/03/05/wanandroid/assets/img/2019030505.jpeg">
-<meta property="og:image" content="http://yoursite.com/assets/img/2019030506.png">
-<meta property="og:updated_time" content="2019-05-16T04:41:26.331Z">
+<meta property="og:image" content="http://yoursite.com/assets/img/20190305/01.png">
+<meta property="og:image" content="http://yoursite.com/assets/img/20190305/02.png">
+<meta property="og:image" content="http://yoursite.com/assets/img/20190305/03.png">
+<meta property="og:image" content="http://yoursite.com/assets/img/20190305/04.png">
+<meta property="og:image" content="http://yoursite.com/2019/03/05/wanandroid/assets/img/20190305/05.jpeg">
+<meta property="og:image" content="http://yoursite.com/assets/img/20190305/06.png">
+<meta property="og:updated_time" content="2019-05-16T04:47:50.565Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="推荐一个Kotlin项目">
 <meta name="twitter:description" content="标题之所以没有使用优秀、优质等华丽的辞藻修饰，是因为这个项目是本人在学习Kotlin过程中用来练手的，不敢在各位前辈和大神面前班门弄斧，自取其辱，况且Github上的玩Android客户端已经有很多个版本了，我也很难望其项背 自Google在2017的I/O大会上宣布Android支持Kotlin，到现在Kotlin语言已受到大批Android开发者的追捧，许多大厂已经使用纯Kotlin进行And">
-<meta name="twitter:image" content="http://yoursite.com/assets/img/2019030501.png">
+<meta name="twitter:image" content="http://yoursite.com/assets/img/20190305/01.png">
   
     <link rel="alternative" href="/atom.xml" title="我的博客|豪世-世界的世" type="application/atom+xml">
   
@@ -192,7 +192,7 @@
 <p>大势所趋吧，不得不学…</p>
 <a id="more"></a>
 <h1 id="项目简介"><a href="#项目简介" class="headerlink" title="项目简介"></a>项目简介</h1><p><strong>上图</strong>，把四张拼一起了</p>
-<p><img src="/assets/img/2019030501.png" alt></p>
+<p><img src="/assets/img/20190305/01.png" alt></p>
 <ul>
 <li>基于Jetpack(包含livedata、lifecycle、paging、room)组件采用 MVVM架构，Jetpack组件的使用方法在这里不做说明</li>
 <li>组件化开发，module之间跳转使用阿里的ARouter路由框架</li>
@@ -214,14 +214,14 @@
 <li><a href="https://github.com/youth5201314/banner" target="_blank" rel="noopener">轮播图控件banner</a></li>
 </ul>
 <h1 id="项目架构解析"><a href="#项目架构解析" class="headerlink" title="项目架构解析"></a>项目架构解析</h1><h2 id="项目分为四个module"><a href="#项目分为四个module" class="headerlink" title="项目分为四个module"></a>项目分为四个module</h2><p>app，App的壳<br>module_base，公共库<br>module_user、module_wan，业务模块</p>
-<p><img src="/assets/img/2019030502.png" alt></p>
+<p><img src="/assets/img/20190305/02.png" alt></p>
 <p>既然是组件化开发，那各个业务模块肯定可以单独运行</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">//根据变量isModule判断是作为依赖library还是单独的application</span><br><span class="line">if (isModule) &#123;</span><br><span class="line">  apply plugin: &apos;com.android.library&apos;</span><br><span class="line">&#125; else &#123;</span><br><span class="line">  apply plugin: &apos;com.android.application&apos;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">sourceSets &#123;</span><br><span class="line">  main &#123;</span><br><span class="line">    //根据变量isModule使用不同文件夹的代码</span><br><span class="line">    if (isModule) &#123;</span><br><span class="line">      manifest.srcFile &apos;src/main/AndroidManifest.xml&apos;</span><br><span class="line">      java &#123;</span><br><span class="line">        //去除指定文件夹代码</span><br><span class="line">        exclude &apos;*module&apos;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">      //这里面只用一个Activity，充当壳Activity</span><br><span class="line">      java.srcDirs &apos;src/main/java&apos;, &apos;src/main/module/java&apos;</span><br><span class="line">      manifest.srcFile &apos;src/main/module/AndroidManifest.xml&apos;</span><br><span class="line">     &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h2 id="app"><a href="#app" class="headerlink" title="app"></a>app</h2><p>它是app的壳，里面只有一个MainActivity，它负责整合所需要的业务模块<br><img src="/assets/img/2019030503.png" alt></p>
+<h2 id="app"><a href="#app" class="headerlink" title="app"></a>app</h2><p>它是app的壳，里面只有一个MainActivity，它负责整合所需要的业务模块<br><img src="/assets/img/20190305/03.png" alt></p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">dependencies &#123;</span><br><span class="line">  implementation fileTree(include: [&apos;*.jar&apos;], dir: &apos;libs&apos;)</span><br><span class="line">  implementation project(&apos;:module_base&apos;)</span><br><span class="line">  kapt kaptLibs</span><br><span class="line">  if (isModule) &#123;</span><br><span class="line">    //依赖业务module</span><br><span class="line">    implementation project(&apos;:module_user&apos;)</span><br><span class="line">    implementation project(&apos;:module_wan&apos;)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h2 id="module-base"><a href="#module-base" class="headerlink" title="module_base"></a>module_base</h2><p>作为公共库，存放base和公用代码，其它的module都要依赖它<br><img src="/assets/img/2019030504.png" alt></p>
+<h2 id="module-base"><a href="#module-base" class="headerlink" title="module_base"></a>module_base</h2><p>作为公共库，存放base和公用代码，其它的module都要依赖它<br><img src="/assets/img/20190305/04.png" alt></p>
 <h2 id="module-wan和module-user"><a href="#module-wan和module-user" class="headerlink" title="module_wan和module_user"></a>module_wan和module_user</h2><p>主要的业务</p>
-<p><img src="/2019/03/05/wanandroid/assets/img/2019030505.jpeg" alt></p>
+<p><img src="/2019/03/05/wanandroid/assets/img/20190305/05.jpeg" alt></p>
 <h1 id="Kotlin的一些特性在项目中的运用"><a href="#Kotlin的一些特性在项目中的运用" class="headerlink" title="Kotlin的一些特性在项目中的运用"></a>Kotlin的一些特性在项目中的运用</h1><h2 id="扩展函数"><a href="#扩展函数" class="headerlink" title="扩展函数"></a>扩展函数</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">//给ImageView添加一个扩展函数，就当做ImageView有了一个load方法</span><br><span class="line">//ImageView作为接受者类型，只有ImageView和其子类能调用该方法</span><br><span class="line">fun ImageView.load(url: Any) &#123;</span><br><span class="line">  //this代表接受这对象</span><br><span class="line">  Glide.with(this).load(url).into(this)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">var imageView: ImageView = ...</span><br><span class="line">//直接使用ImageView对象调用load方法</span><br><span class="line">imageView.load(url)</span><br></pre></td></tr></table></figure>
 <p>以前使用工具类必须要传一个类型为ImageView的参数，现在直接用ImageView调用扩展方法是不是简单了很多</p>
 <h2 id="空判断"><a href="#空判断" class="headerlink" title="空判断"></a>空判断</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">override fun setTitle(title: CharSequence?) &#123;  //这个？表示该变量可以为null</span><br><span class="line">  //? 表示如果toolbar不为空才执行后面的代码，给其属性title赋值</span><br><span class="line">  toolbar?.title = title</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
@@ -244,7 +244,7 @@
 <p><strong>项目中使用到了鸿洋的玩Android开放Api和很多开源库，在此向所有对开源做出过贡献的各位大神表示感谢，正是有你们的开源共享，我们这些菜鸟的技术才能有所提升，也是你们用最美的语言，推动了科技的进步</strong></p>
 <p><strong>附上本项目地址</strong> <a href="https://github.com/haoshiy/kotlin_wanandroid" target="_blank" rel="noopener">Github传送门</a></p>
 <p><strong>Apk玩Android下载地址</strong> <a href="https://haoshi.co/wanandroid.apk" target="_blank" rel="noopener">https://haoshi.co/wanandroid.apk</a></p>
-<p><img src="/assets/img/2019030506.png" alt="扫码下载"></p>
+<p><img src="/assets/img/20190305/06.png" alt="扫码下载"></p>
 <p><strong>End</strong></p>
 
       
