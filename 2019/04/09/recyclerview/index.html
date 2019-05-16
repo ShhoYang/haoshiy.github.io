@@ -16,12 +16,12 @@
 <meta property="og:site_name" content="我的博客|豪世-世界的世">
 <meta property="og:description" content="RecyclerView的使用相信大家都很熟悉了，可以完全代替ListView和GridView，并且口味更佳，例如  四级缓存，ListView只有两级缓存 Item添加动画 数据局部更新 瀑布流。当然也可以自定义LayoutManager，规则布局你说了算 …..">
 <meta property="og:locale" content="zh-CN">
-<meta property="og:image" content="http://yoursite.com/img/2019040901.png">
-<meta property="og:updated_time" content="2019-05-16T04:30:21.578Z">
+<meta property="og:image" content="http://yoursite.com/assets/img/2019040901.png">
+<meta property="og:updated_time" content="2019-05-16T04:34:32.752Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="RecyclerView的缓存机制">
 <meta name="twitter:description" content="RecyclerView的使用相信大家都很熟悉了，可以完全代替ListView和GridView，并且口味更佳，例如  四级缓存，ListView只有两级缓存 Item添加动画 数据局部更新 瀑布流。当然也可以自定义LayoutManager，规则布局你说了算 …..">
-<meta name="twitter:image" content="http://yoursite.com/img/2019040901.png">
+<meta name="twitter:image" content="http://yoursite.com/assets/img/2019040901.png">
   
     <link rel="alternative" href="/atom.xml" title="我的博客|豪世-世界的世" type="application/atom+xml">
   
@@ -190,7 +190,7 @@
 </ul>
 <a id="more"></a>
 <p>本文只讲解缓存机制。先来看一张Structure图</p>
-<p><img src="/img/2019040901.png" alt></p>
+<p><img src="/assets/img/2019040901.png" alt></p>
 <p>写RecyclerView的大佬可能有内部类情节，所以整个RecyclerView下来有1.2w余行，这还不包括已经实现的几个LinearLayoutManager、DividerItemDecoration等等几个类，所以想看完整个源码是不可能的，看懂大概流程就可以了</p>
 <h1 id="四级缓存"><a href="#四级缓存" class="headerlink" title="四级缓存"></a>四级缓存</h1><p>RecyclerView的缓存由内部类Recycler负责，回收和复用都是以ViewHolder为单位</p>
 <p><strong>第一级缓存</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">final ArrayList&lt;ViewHolder&gt; mAttachedScrap = new ArrayList&lt;&gt;();</span><br><span class="line">ArrayList&lt;ViewHolder&gt; mChangedScrap = null;</span><br></pre></td></tr></table></figure></p>
