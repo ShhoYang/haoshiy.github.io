@@ -16,7 +16,7 @@
 <meta property="og:site_name" content="我的博客|豪世-世界的世">
 <meta property="og:description" content="从事Android开发多年，做过的项目中http请求框架一直用的OkHttp，从鸿神的okhttputils，到后来的Retrofit，万变不离其宗 应该有很多同学和我一样也都在这使用这些框架，但也只仅仅停留在会用的状态，知道它牛批，用的人最多，但是具体牛批在哪，也说不出个所以然 但是现在都0202了 本着对自己负责的心态和让自己在公司疯狂裁员的处境下能够更加淡然面对（能给我安全感的不只有手机和钱">
 <meta property="og:locale" content="zh-CN">
-<meta property="og:updated_time" content="2020-07-21T08:30:25.067Z">
+<meta property="og:updated_time" content="2020-07-21T10:16:02.510Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="OkHttp4.x源码解析(一)--基本流程">
 <meta name="twitter:description" content="从事Android开发多年，做过的项目中http请求框架一直用的OkHttp，从鸿神的okhttputils，到后来的Retrofit，万变不离其宗 应该有很多同学和我一样也都在这使用这些框架，但也只仅仅停留在会用的状态，知道它牛批，用的人最多，但是具体牛批在哪，也说不出个所以然 但是现在都0202了 本着对自己负责的心态和让自己在公司疯狂裁员的处境下能够更加淡然面对（能给我安全感的不只有手机和钱">
@@ -183,6 +183,7 @@
 <p>于是我默默的打开了<a href="https://github.com/square/okhttp" target="_blank" rel="noopener">https://github.com/square/okhttp</a></p>
 <p>然后就是一连串的懵逼和对自己对OkHttp了解程度的打脸（我以为我用的3.10已经很新了）</p>
 <p><strong>😲什么时间可更新到4.3.1版本了？</strong><br><strong>😲又是什么时间从Java迁移到Kotlin了？</strong><br><strong>😲api变化大吗？</strong><br><strong>…</strong></p>
+<a id="more"></a>
 <p>查阅到<a href="https://square.github.io/okhttp/upgrading_to_okhttp_4" target="_blank" rel="noopener">官方手册</a></p>
 <blockquote>
 <p>OkHttp 4.x upgrades our implementation language from Java to Kotlin and keeps everything else the same. We’ve chosen Kotlin because it gives us powerful new capabilities while integrating closely with Java.<br>We spent a lot of time and energy on retaining strict compatibility with OkHttp 3.x. We’re even keeping the package name the same: okhttp3!</p>
